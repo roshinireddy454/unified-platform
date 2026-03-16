@@ -1,0 +1,5 @@
+import { FileLike } from '../../ReactFileUtilities';
+import type { EnrichURLsController } from './useLinkPreviews';
+export declare const usePasteHandler: (uploadNewFiles: (files: FileList | FileLike[] | File[]) => void, insertText: (textToInsert: string) => void, isUploadEnabled: boolean, findAndEnqueueURLsToEnrich?: EnrichURLsController['findAndEnqueueURLsToEnrich']) => {
+    onPaste: (clipboardEvent: React.ClipboardEvent<HTMLTextAreaElement>) => void;
+};

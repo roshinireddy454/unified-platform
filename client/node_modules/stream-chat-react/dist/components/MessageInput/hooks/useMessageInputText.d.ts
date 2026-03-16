@@ -1,0 +1,10 @@
+/// <reference types="react" />
+import type { MessageInputReducerAction, MessageInputState } from './useMessageInputState';
+import type { MessageInputProps } from '../MessageInput';
+import type { CustomTrigger, DefaultStreamChatGenerics } from '../../../types/types';
+import type { EnrichURLsController } from './useLinkPreviews';
+export declare const useMessageInputText: <StreamChatGenerics extends DefaultStreamChatGenerics = DefaultStreamChatGenerics, V extends CustomTrigger = CustomTrigger>(props: MessageInputProps<StreamChatGenerics, V>, state: MessageInputState<StreamChatGenerics>, dispatch: React.Dispatch<MessageInputReducerAction<StreamChatGenerics>>, findAndEnqueueURLsToEnrich?: EnrichURLsController['findAndEnqueueURLsToEnrich']) => {
+    handleChange: import("react").ChangeEventHandler<HTMLTextAreaElement>;
+    insertText: (textToInsert: string) => void;
+    textareaRef: import("react").RefObject<HTMLTextAreaElement | undefined>;
+};

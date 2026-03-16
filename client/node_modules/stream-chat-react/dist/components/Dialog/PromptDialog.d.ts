@@ -1,0 +1,8 @@
+import React, { ComponentProps } from 'react';
+export type ConfirmationDialogProps = {
+    actions: ComponentProps<'button'>[];
+    prompt: string;
+    className?: string;
+    title?: string;
+};
+export declare const PromptDialog: ({ actions, className, prompt, title, }: ConfirmationDialogProps) => React.JSX.Element;

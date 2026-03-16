@@ -1,0 +1,11 @@
+import React from 'react';
+import { ChannelPreviewInfoParams } from '../ChannelPreview/hooks/useChannelPreviewInfo';
+import { StreamMessage } from '../../context/ChannelStateContext';
+import type { DefaultStreamChatGenerics } from '../../types/types';
+export type ThreadHeaderProps<StreamChatGenerics extends DefaultStreamChatGenerics = DefaultStreamChatGenerics> = {
+    /** Callback for closing the thread */
+    closeThread: (event?: React.BaseSyntheticEvent) => void;
+    /** The thread parent message */
+    thread: StreamMessage<StreamChatGenerics>;
+};
+export declare const ThreadHeader: <StreamChatGenerics extends DefaultStreamChatGenerics = DefaultStreamChatGenerics>(props: ThreadHeaderProps<StreamChatGenerics> & Pick<ChannelPreviewInfoParams<StreamChatGenerics>, 'overrideImage' | 'overrideTitle'>) => React.JSX.Element;

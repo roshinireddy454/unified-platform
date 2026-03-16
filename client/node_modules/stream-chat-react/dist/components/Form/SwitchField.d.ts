@@ -1,0 +1,7 @@
+import React, { ComponentProps, PropsWithChildren } from 'react';
+export type SwitchFieldProps = PropsWithChildren<ComponentProps<'input'>>;
+export declare const SwitchField: ({ children, ...props }: SwitchFieldProps) => React.JSX.Element;
+export type SimpleSwitchFieldProps = ComponentProps<'input'> & {
+    labelText: string;
+};
+export declare const SimpleSwitchField: ({ labelText, ...props }: SimpleSwitchFieldProps) => React.JSX.Element;

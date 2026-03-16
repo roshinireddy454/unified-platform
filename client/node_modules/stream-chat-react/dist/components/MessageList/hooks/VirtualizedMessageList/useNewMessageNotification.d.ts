@@ -1,0 +1,10 @@
+/// <reference types="react" />
+import type { StreamMessage } from '../../../../context/ChannelStateContext';
+import type { DefaultStreamChatGenerics } from '../../../../types/types';
+export declare function useNewMessageNotification<StreamChatGenerics extends DefaultStreamChatGenerics = DefaultStreamChatGenerics>(messages: StreamMessage<StreamChatGenerics>[], currentUserId: string | undefined, hasMoreNewer?: boolean): {
+    atBottom: import("react").RefObject<boolean>;
+    isMessageListScrolledToBottom: boolean;
+    newMessagesNotification: boolean;
+    setIsMessageListScrolledToBottom: import("react").Dispatch<import("react").SetStateAction<boolean>>;
+    setNewMessagesNotification: import("react").Dispatch<import("react").SetStateAction<boolean>>;
+};

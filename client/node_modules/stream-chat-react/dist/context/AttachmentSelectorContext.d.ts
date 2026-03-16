@@ -1,0 +1,8 @@
+import React, { PropsWithChildren } from 'react';
+export type AttachmentSelectorContextValue = {
+    fileInput: HTMLInputElement | null;
+};
+export declare const AttachmentSelectorContextProvider: ({ children, value, }: PropsWithChildren<{
+    value: AttachmentSelectorContextValue;
+}>) => React.JSX.Element;
+export declare const useAttachmentSelectorContext: () => AttachmentSelectorContextValue;

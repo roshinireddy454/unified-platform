@@ -1,0 +1,9 @@
+import React, { PropsWithChildren } from 'react';
+export type PollActionProps = {
+    buttonText: string;
+    closeModal: () => void;
+    modalIsOpen: boolean;
+    openModal: () => void;
+    modalClassName?: string;
+};
+export declare const PollAction: ({ buttonText, children, closeModal, modalClassName, modalIsOpen, openModal, }: PropsWithChildren<PollActionProps>) => React.JSX.Element;

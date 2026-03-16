@@ -1,0 +1,13 @@
+import React, { PropsWithChildren } from 'react';
+import type { SearchSource } from 'stream-chat';
+export type SearchSourceResultsContextValue = {
+    searchSource: SearchSource;
+};
+export declare const SearchSourceResultsContext: React.Context<SearchSourceResultsContextValue | undefined>;
+/**
+ * Context provider for components rendered within the `SearchSourceResults`
+ */
+export declare const SearchSourceResultsContextProvider: ({ children, value, }: PropsWithChildren<{
+    value: SearchSourceResultsContextValue;
+}>) => React.JSX.Element;
+export declare const useSearchSourceResultsContext: () => SearchSourceResultsContextValue;

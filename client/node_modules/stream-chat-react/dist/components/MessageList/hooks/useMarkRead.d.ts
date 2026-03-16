@@ -1,0 +1,17 @@
+import type { DefaultStreamChatGenerics } from '../../../types';
+type UseMarkReadParams = {
+    isMessageListScrolledToBottom: boolean;
+    messageListIsThread: boolean;
+    wasMarkedUnread?: boolean;
+};
+/**
+ * Takes care of marking a channel read. The channel is read only if all the following applies:
+ * 1. the message list is not rendered in a thread
+ * 2. the message list is scrolled to the bottom
+ * 3. the channel was not marked unread by the user
+ * @param isMessageListScrolledToBottom
+ * @param messageListIsThread
+ * @param wasChannelMarkedUnread
+ */
+export declare const useMarkRead: <StreamChatGenerics extends DefaultStreamChatGenerics = DefaultStreamChatGenerics>({ isMessageListScrolledToBottom, messageListIsThread, wasMarkedUnread, }: UseMarkReadParams) => void;
+export {};

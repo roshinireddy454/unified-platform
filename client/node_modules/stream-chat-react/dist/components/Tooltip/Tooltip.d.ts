@@ -1,0 +1,14 @@
+import React, { ComponentProps } from 'react';
+import { PopperProps } from 'react-popper';
+export declare const Tooltip: ({ children, ...rest }: ComponentProps<'div'>) => React.JSX.Element;
+export type PopperTooltipProps<T extends HTMLElement> = React.PropsWithChildren<{
+    /** Reference element to which the tooltip should attach to */
+    referenceElement: T | null;
+    /** Popper's modifier (offset) property - [xAxis offset, yAxis offset], default [0, 10] */
+    offset?: [number, number];
+    /** Popper's placement property defining default position of the tooltip, default 'top' */
+    placement?: PopperProps<unknown>['placement'];
+    /** Tells component whether to render its contents */
+    visible?: boolean;
+}>;
+export declare const PopperTooltip: <T extends HTMLElement>({ children, offset, placement, referenceElement, visible, }: PopperTooltipProps<T>) => React.JSX.Element | null;

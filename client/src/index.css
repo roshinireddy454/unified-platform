@@ -1,0 +1,144 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+
+  /* ── CRITICAL: dark color-scheme makes browser date/time pickers visible ── */
+  :root {
+    color-scheme: dark;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-navy-950 text-white font-body;
+    background-image: 
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(37, 99, 235, 0.12), transparent),
+      radial-gradient(ellipse 60% 40% at 80% 80%, rgba(16, 185, 129, 0.06), transparent);
+    min-height: 100vh;
+  }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { @apply bg-navy-900; }
+  ::-webkit-scrollbar-thumb { @apply bg-azure-600 rounded-full; }
+
+  /* Force datetime-local / date / time inputs to show text in dark mode */
+  input[type="datetime-local"],
+  input[type="date"],
+  input[type="time"] {
+    color-scheme: dark;
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  /* Calendar picker icon color fix for Webkit */
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) opacity(0.6);
+    cursor: pointer;
+  }
+
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover,
+  input[type="date"]::-webkit-calendar-picker-indicator:hover,
+  input[type="time"]::-webkit-calendar-picker-indicator:hover {
+    filter: invert(1) opacity(1);
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-navy-800/60 backdrop-blur-sm border border-white/5 rounded-2xl shadow-card;
+  }
+
+  .card-hover {
+    @apply card transition-all duration-300 hover:border-azure-500/30 hover:shadow-glow hover:-translate-y-1;
+  }
+
+  .btn-primary {
+    @apply bg-azure-600 hover:bg-azure-500 text-white font-medium px-5 py-2.5 rounded-xl transition-all duration-200 shadow-glow;
+  }
+
+  .btn-secondary {
+    @apply bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/20 font-medium px-5 py-2.5 rounded-xl transition-all duration-200;
+  }
+
+  .btn-danger {
+    @apply bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 font-medium px-5 py-2.5 rounded-xl transition-all duration-200;
+  }
+
+  .input {
+    @apply w-full bg-navy-900/80 border border-white/10 focus:border-azure-500/60 text-white placeholder-white/30 rounded-xl px-4 py-3 outline-none transition-all duration-200 font-body;
+    color-scheme: dark;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-white/60 mb-1.5;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium;
+  }
+
+  .badge-blue {
+    @apply badge bg-azure-500/20 text-azure-400 border border-azure-500/30;
+  }
+
+  .badge-green {
+    @apply badge bg-emerald-500/20 text-emerald-400 border border-emerald-500/30;
+  }
+
+  .badge-amber {
+    @apply badge bg-amber-500/20 text-amber-400 border border-amber-500/30;
+  }
+
+  .badge-rose {
+    @apply badge bg-rose-500/20 text-rose-400 border border-rose-500/30;
+  }
+
+  .section-title {
+    @apply font-display text-2xl font-semibold text-white;
+  }
+
+  .nav-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer;
+  }
+
+  .nav-item-active {
+    @apply nav-item bg-azure-600/20 text-azure-400 border border-azure-500/30;
+  }
+
+  .nav-item-inactive {
+    @apply nav-item text-white/50 hover:bg-white/5 hover:text-white/80;
+  }
+
+  .stat-card {
+    @apply card p-5 flex flex-col gap-3;
+  }
+
+  .divider {
+    @apply border-t border-white/5 my-4;
+  }
+
+  .shimmer {
+    background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.03) 75%);
+    background-size: 200% 100%;
+    @apply animate-shimmer;
+  }
+
+  /* Stream Video SDK Overrides */
+  .str-video {
+    @apply !bg-navy-900;
+  }
+
+  .str-video__call-controls {
+    @apply !bg-navy-800/80 !backdrop-blur-md !border-t !border-white/5;
+  }
+
+  .str-video__participant-view {
+    @apply !rounded-xl !overflow-hidden;
+  }
+}

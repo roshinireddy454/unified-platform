@@ -1,0 +1,5 @@
+import { ThreadState } from 'stream-chat';
+/**
+ * @description returns thread state, prioritizes `ThreadListItemContext` falls back to `ThreadContext` if not former is not present
+ */
+export declare const useThreadState: <T extends readonly unknown[]>(selector: (nextValue: ThreadState) => T) => T | undefined;

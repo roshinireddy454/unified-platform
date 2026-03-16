@@ -1,0 +1,7 @@
+import React, { PropsWithChildren } from 'react';
+export type DragAndDropContainerProps = PropsWithChildren<{
+    className?: string;
+    draggable?: boolean;
+    onSetNewOrder?: (newOrder: number[]) => void;
+}>;
+export declare const DragAndDropContainer: ({ children, className, draggable, onSetNewOrder, }: DragAndDropContainerProps) => React.JSX.Element;

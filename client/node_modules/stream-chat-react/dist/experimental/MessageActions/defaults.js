@@ -1,0 +1,117 @@
+/* eslint-disable sort-keys */
+import React from 'react';
+import { isUserMuted } from '../../components';
+import { ReactionIcon as DefaultReactionIcon, ThreadIcon, } from '../../components/Message/icons';
+import { ReactionSelectorWithButton } from '../../components/Reactions/ReactionSelectorWithButton';
+import { useChannelActionContext, useChatContext, useMessageContext, useTranslationContext, } from '../../context';
+export const DefaultDropdownActionButton = ({ 'aria-selected': ariaSelected = 'false', children, className = 'str-chat__message-actions-list-item-button', role = 'option', ...rest }) => (React.createElement("button", { "aria-selected": ariaSelected, className: className, role: role, ...rest }, children));
+const DefaultMessageActionComponents = {
+    dropdown: {
+        Quote() {
+            const { setQuotedMessage } = useChannelActionContext();
+            const { message } = useMessageContext();
+            const { t } = useTranslationContext();
+            const handleQuote = () => {
+                setQuotedMessage(message);
+                const elements = message.parent_id
+                    ? document.querySelectorAll('.str-chat__thread .str-chat__textarea__textarea')
+                    : document.getElementsByClassName('str-chat__textarea__textarea');
+                const textarea = elements.item(0);
+                if (textarea instanceof HTMLTextAreaElement) {
+                    textarea.focus();
+                }
+            };
+            return (React.createElement(DefaultDropdownActionButton, { onClick: handleQuote }, t('Quote')));
+        },
+        Pin() {
+            const { handlePin, message } = useMessageContext();
+            const { t } = useTranslationContext();
+            return (React.createElement(DefaultDropdownActionButton, { onClick: handlePin }, !message.pinned ? t('Pin') : t('Unpin')));
+        },
+        MarkUnread() {
+            const { handleMarkUnread } = useMessageContext();
+            const { t } = useTranslationContext();
+            return (React.createElement(DefaultDropdownActionButton, { onClick: handleMarkUnread }, t('Mark as unread')));
+        },
+        Flag() {
+            const { handleFlag } = useMessageContext();
+            const { t } = useTranslationContext();
+            return (React.createElement(DefaultDropdownActionButton, { onClick: handleFlag }, t('Flag')));
+        },
+        Mute() {
+            const { handleMute, message } = useMessageContext();
+            const { mutes } = useChatContext();
+            const { t } = useTranslationContext();
+            return (React.createElement(DefaultDropdownActionButton, { onClick: handleMute }, isUserMuted(message, mutes) ? t('Unmute') : t('Mute')));
+        },
+        Edit() {
+            const { handleEdit } = useMessageContext();
+            const { t } = useTranslationContext();
+            return (React.createElement(DefaultDropdownActionButton, { onClick: handleEdit }, t('Edit Message')));
+        },
+        Delete() {
+            const { handleDelete } = useMessageContext();
+            const { t } = useTranslationContext();
+            return (React.createElement(DefaultDropdownActionButton, { onClick: handleDelete }, t('Delete')));
+        },
+    },
+    quick: {
+        React() {
+            return React.createElement(ReactionSelectorWithButton, { ReactionIcon: DefaultReactionIcon });
+        },
+        Reply() {
+            const { handleOpenThread } = useMessageContext();
+            const { t } = useTranslationContext();
+            return (React.createElement("button", { "aria-label": t('aria/Open Thread'), className: 'str-chat__message-reply-in-thread-button', "data-testid": 'thread-action', onClick: handleOpenThread },
+                React.createElement(ThreadIcon, { className: 'str-chat__message-action-icon' })));
+        },
+    },
+};
+export const defaultMessageActionSet = [
+    // { placement: 'dropdown', type: 'block' },
+    {
+        Component: DefaultMessageActionComponents.quick.Reply,
+        placement: 'quick',
+        type: 'reply',
+    },
+    {
+        Component: DefaultMessageActionComponents.quick.React,
+        placement: 'quick',
+        type: 'react',
+    },
+    {
+        Component: DefaultMessageActionComponents.dropdown.Delete,
+        placement: 'dropdown',
+        type: 'delete',
+    },
+    {
+        Component: DefaultMessageActionComponents.dropdown.Edit,
+        placement: 'dropdown',
+        type: 'edit',
+    },
+    {
+        Component: DefaultMessageActionComponents.dropdown.Mute,
+        placement: 'dropdown',
+        type: 'mute',
+    },
+    {
+        Component: DefaultMessageActionComponents.dropdown.Flag,
+        placement: 'dropdown',
+        type: 'flag',
+    },
+    {
+        Component: DefaultMessageActionComponents.dropdown.Pin,
+        placement: 'dropdown',
+        type: 'pin',
+    },
+    {
+        Component: DefaultMessageActionComponents.dropdown.Quote,
+        placement: 'dropdown',
+        type: 'quote',
+    },
+    {
+        Component: DefaultMessageActionComponents.dropdown.MarkUnread,
+        placement: 'dropdown',
+        type: 'markUnread',
+    },
+];

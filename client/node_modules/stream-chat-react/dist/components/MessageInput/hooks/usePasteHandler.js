@@ -1,0 +1,38 @@
+import { useCallback } from 'react';
+import { dataTransferItemsToFiles } from '../../ReactFileUtilities';
+import { SetLinkPreviewMode } from '../types';
+export const usePasteHandler = (uploadNewFiles, insertText, isUploadEnabled, findAndEnqueueURLsToEnrich) => {
+    const onPaste = useCallback((clipboardEvent) => {
+        (async (event) => {
+            const { items } = event.clipboardData;
+            event.preventDefault();
+            // Get a promise for the plain text in case no files are
+            // found. This needs to be done here because chrome cleans
+            // up the DataTransferItems after resolving of a promise.
+            let plainTextPromise = undefined;
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (item.kind === 'string' && item.type === 'text/plain') {
+                    plainTextPromise = new Promise((resolve) => {
+                        item.getAsString((string) => {
+                            resolve(string);
+                        });
+                    });
+                    break;
+                }
+            }
+            const fileLikes = await dataTransferItemsToFiles(Array.from(items));
+            if (plainTextPromise) {
+                const pastedText = await plainTextPromise;
+                insertText(pastedText);
+                findAndEnqueueURLsToEnrich?.(pastedText, SetLinkPreviewMode.UPSERT);
+                findAndEnqueueURLsToEnrich?.flush();
+            }
+            else if (fileLikes.length && isUploadEnabled) {
+                uploadNewFiles(fileLikes);
+                return;
+            }
+        })(clipboardEvent);
+    }, [findAndEnqueueURLsToEnrich, insertText, isUploadEnabled, uploadNewFiles]);
+    return { onPaste };
+};

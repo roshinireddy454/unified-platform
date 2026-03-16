@@ -1,0 +1,11 @@
+import React, { PropsWithChildren } from 'react';
+export type InfiniteScrollPaginatorProps = React.ComponentProps<'div'> & {
+    listenToScroll?: (distanceFromBottom: number, distanceFromTop: number, threshold: number) => void;
+    loadNextDebounceMs?: number;
+    loadNextOnScrollToBottom?: () => void;
+    loadNextOnScrollToTop?: () => void;
+    /** Offset from when to start the loadNextPage call */
+    threshold?: number;
+    useCapture?: boolean;
+};
+export declare const InfiniteScrollPaginator: (props: PropsWithChildren<InfiniteScrollPaginatorProps>) => React.JSX.Element;
