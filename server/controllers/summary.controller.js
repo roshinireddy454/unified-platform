@@ -79,72 +79,85 @@ export const generateSummary = async (req, res) => {
         generateAISubtitles(safeTranscript),
       ]);
     }
+
     if (!summary) summary = fallbackSummary(safeTranscript);
 
-    let pdfUrl = null;
-    try {
-      const pdfBytes = await generateSummaryPdf({
-        title:    meetingTitle || "Class Summary",
-        date:     new Date().toLocaleDateString(),
-        fullText: safeTranscript,
+    // Upsert summary
+    const existing = await MeetingSummary.findOne({ meetingId });
+    let savedSummary;
+    if (existing) {
+      existing.summary    = summary;
+      existing.subtitles  = subtitles;
+      existing.transcript = safeTranscript;
+      existing.title      = meetingTitle || existing.title || "Class";
+      await existing.save();
+      savedSummary = existing;
+    } else {
+      savedSummary = await MeetingSummary.create({
+        meetingId,
+        title:       meetingTitle || "Class",
         summary,
         subtitles,
+        transcript:  safeTranscript,
+        generatedBy: userId,
       });
-      const pdfDir  = path.join(__dirname, "../../public/summaries");
-      fs.mkdirSync(pdfDir, { recursive: true });
-      const fileName = `${meetingId.replace(/[^a-z0-9_-]/gi, "_")}.pdf`;
-      fs.writeFileSync(path.join(pdfDir, fileName), pdfBytes);
-      pdfUrl = `/summaries/${fileName}`;
-    } catch (pdfErr) {
-      console.error("PDF generation failed (non-fatal):", pdfErr.message);
     }
 
-    const saved = await MeetingSummary.findOneAndUpdate(
-      { meetingId },
-      {
-        meetingId,
-        meetingTitle:    meetingTitle || "Meeting Summary",
-        transcript:      safeTranscript,
-        summary,
-        subtitles,
-        pdfPath:         pdfUrl,
-        generatedBy:     userId,
-        aiGenerated:     hasAI && safeTranscript !== "No transcript was captured for this session.",
-        deletedByCreator: false,
-        expiresAt:       new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      },
-      { upsert: true, new: true }
-    );
+    // Generate PDF
+    try {
+      const pdfDir  = path.join(__dirname, "../../public/summaries");
+      fs.mkdirSync(pdfDir, { recursive: true });
+      const pdfPath = path.join(pdfDir, `${meetingId}.pdf`);
+      await generateSummaryPdf({ title: meetingTitle || "Class", summary, subtitles }, pdfPath);
+      savedSummary.pdfPath = `/summaries/${meetingId}.pdf`;
+      await savedSummary.save();
+    } catch (pdfErr) {
+      console.error("PDF generation failed:", pdfErr.message);
+    }
 
-    // Notify all students that a summary is available
-    const students = await User.find({ role: "student" }).select("_id");
-    await notify(req.io, students.map((s) => ({
-      recipient: s._id,
-      type:      "summary_available",
-      title:     "📄 Class Summary Available",
-      message:   `Your instructor generated a summary for "${meetingTitle || "a recent class"}". Check it out in Summaries.`,
-      link:      `/summaries`,
-      metadata:  { meetingId },
-    })));
+    // Notify students
+    try {
+      const students = await User.find({ role: "student" }).select("_id");
+      for (const s of students) {
+        await notify(req.io, s._id, {
+          type:    "summary_available",
+          title:   "Class Summary Ready",
+          message: `The summary for "${meetingTitle || "your class"}" is now available.`,
+          link:    "/summaries",
+        });
+      }
+    } catch {}
 
-    return res.status(200).json({
-      success: true, meetingId, pdfPath: pdfUrl,
-      summary, subtitles, aiGenerated: saved.aiGenerated,
-    });
+    return res.status(200).json({ success: true, summary: savedSummary });
   } catch (error) {
-    console.error("Summary generation error:", error);
+    console.error("generateSummary:", error);
     return res.status(500).json({ success: false, error: "Failed to generate summary" });
   }
 };
 
+// ── GET SUMMARIES ─────────────────────────────────────────────
+// Instructors: only see summaries for classes THEY conducted
+// Students:    see all summaries (except deleted)
 export const getSummaries = async (req, res) => {
   try {
-    const summaries = await MeetingSummary.find({ deletedByCreator: { $ne: true } })
+    const userId = req.id;
+    const user   = await User.findById(userId).select("role");
+
+    let query = { deletedByCreator: { $ne: true } };
+
+    if (user?.role === "instructor") {
+      // Only show summaries the instructor themselves generated
+      query.generatedBy = userId;
+    }
+
+    const summaries = await MeetingSummary.find(query)
       .populate("generatedBy", "name photoUrl role")
       .sort({ createdAt: -1 })
       .select("-transcript");
+
     return res.status(200).json({ success: true, summaries });
   } catch (error) {
+    console.error("getSummaries:", error);
     return res.status(500).json({ success: false, message: "Failed to fetch summaries" });
   }
 };
@@ -169,13 +182,20 @@ export const deleteSummary = async (req, res) => {
 
     const summary = await MeetingSummary.findOne({ meetingId });
     if (!summary) return res.status(404).json({ success: false, message: "Summary not found" });
-    if (summary.generatedBy?.toString() !== req.id)
-      return res.status(403).json({ success: false, message: "You can only delete your own summaries" });
 
-    await MeetingSummary.findOneAndUpdate({ meetingId }, { deletedByCreator: true, deletedAt: new Date() });
-    return res.status(200).json({ success: true, message: "Summary deleted successfully" });
+    // Delete PDF file if it exists
+    if (summary.pdfPath) {
+      const fullPath = path.join(__dirname, "../../public", summary.pdfPath);
+      if (fs.existsSync(fullPath)) {
+        fs.unlinkSync(fullPath);
+      }
+    }
+
+    await MeetingSummary.deleteOne({ meetingId });
+
+    return res.status(200).json({ success: true, message: "Summary deleted" });
   } catch (error) {
-    console.error("Delete summary error:", error);
+    console.error("deleteSummary:", error);
     return res.status(500).json({ success: false, message: "Failed to delete summary" });
   }
 };

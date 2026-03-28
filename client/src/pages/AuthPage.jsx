@@ -183,7 +183,7 @@ export default function AuthPage() {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-azure-500 to-azure-600 flex items-center justify-center shadow-glow">
               <GraduationCap size={20} className="text-white" />
             </div>
-            <span className="font-display text-2xl font-semibold text-white">LearnSphere</span>
+            <span className="font-display text-2xl font-semibold text-white">CollabSphere</span>
           </div>
           <p className="text-white/30 text-sm ml-1">Unified Learning Platform</p>
         </div>

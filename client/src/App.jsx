@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 
 import Layout               from "./components/Layout";
+import LandingPage          from "./pages/LandingPage";
 import AuthPage             from "./pages/AuthPage";
 import TeacherSignupPage    from "./pages/TeacherSignupPage";
 import VerifyEmailPage      from "./pages/VerifyEmailPage";
@@ -34,7 +35,7 @@ import TestResultPage       from "./pages/TestResultPage";
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <LoadingScreen />;
-  if (!user)   return <Navigate to="/auth" replace />;
+  if (!user)   return <Navigate to="/landing" replace />;
   return children;
 };
 
@@ -45,7 +46,6 @@ const PublicRoute = ({ children }) => {
   return children;
 };
 
-// Teacher signup is public (accessible without auth) but token-gated server-side
 const PublicOnlyRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <LoadingScreen />;
@@ -68,6 +68,9 @@ const StudentRoute = ({ children }) => {
 export default function App() {
   return (
     <Routes>
+      {/* ── Landing page ───────────────────────────────────── */}
+      <Route path="/landing" element={<LandingPage />} />
+
       {/* ── Public auth routes ─────────────────────────────── */}
       <Route path="/auth"             element={<PublicRoute><AuthPage /></PublicRoute>} />
       <Route path="/teacher-signup"   element={<PublicOnlyRoute><TeacherSignupPage /></PublicOnlyRoute>} />
@@ -111,7 +114,7 @@ export default function App() {
       {/* Meeting room — full screen, outside Layout */}
       <Route path="/meeting/:meetingId" element={<ProtectedRoute><MeetingRoomPage /></ProtectedRoute>} />
 
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to="/landing" replace />} />
     </Routes>
   );
 }

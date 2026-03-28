@@ -13,12 +13,52 @@ import toast from "react-hot-toast";
 import {
   GraduationCap, FileText, Users, Loader, Subtitles, X,
   Mic, MicOff, Clock, UserCheck, UserX, Bell, AlertTriangle,
-  PenLine, MessageSquare, BarChart2, LayoutGrid,
+  PenLine, MessageSquare, BarChart2, LayoutGrid, Maximize2,
+  Monitor, EyeOff, User, Minimize2,
 } from "lucide-react";
 import LiveWhiteboard from "../components/LiveWhiteBoard";
 import LiveChatPanel from "../components/LiveChatPanel";
 import LivePollPanel from "../components/LivePollPanel";
 import BreakoutRoomPanel from "../components/BreakoutRoomPanel";
+
+// ─────────────────────────────────────────────────────────────
+// Layout Mode Options
+// ─────────────────────────────────────────────────────────────
+const LAYOUT_MODES = [
+  { id: "default",          label: "Default",             icon: LayoutGrid,  desc: "Speaker + participants bar" },
+  { id: "teacher-only",     label: "Teacher Only",        icon: Monitor,     desc: "Only instructor video" },
+  { id: "students-only",    label: "Students Only",       icon: Users,       desc: "Only students' videos" },
+  { id: "no-participants",  label: "No Participants",     icon: EyeOff,      desc: "Hide participant bar" },
+];
+
+function LayoutSelector({ current, onChange, onClose }) {
+  return (
+    <div className="absolute right-4 top-16 z-30 w-72 bg-navy-900/95 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/8 bg-white/3">
+        <span className="text-sm font-semibold text-white">View Layout</span>
+        <button onClick={onClose} className="text-white/30 hover:text-white p-1"><X size={15} /></button>
+      </div>
+      <div className="p-2 space-y-1">
+        {LAYOUT_MODES.map(({ id, label, icon: Icon, desc }) => (
+          <button
+            key={id}
+            onClick={() => { onChange(id); onClose(); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${
+              current === id ? "bg-azure-600/80 text-white" : "text-white/70 hover:bg-white/8 hover:text-white"
+            }`}
+          >
+            <Icon size={16} className="flex-shrink-0" />
+            <div>
+              <div className="text-sm font-medium">{label}</div>
+              <div className="text-xs text-white/40">{desc}</div>
+            </div>
+            {current === id && <div className="ml-auto w-2 h-2 rounded-full bg-azure-400" />}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────
 // Waiting Room Panel
@@ -36,7 +76,7 @@ function WaitingRoomPanel({ meetingId, onClose }) {
 
   useEffect(() => {
     fetchWaiting();
-    const t = setInterval(fetchWaiting, 5000);
+    const t = setInterval(fetchWaiting, 4000);
     return () => clearInterval(t);
   }, [fetchWaiting]);
 
@@ -235,7 +275,7 @@ function ParticipantsPanel({ meetingId, onClose }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// MeetingRoom — inner component (must be inside StreamCall)
+// MeetingRoom inner component
 // ─────────────────────────────────────────────────────────────
 function MeetingRoom({
   meetingId, isInstructor, onLeave, onGenerateSummary,
@@ -243,69 +283,87 @@ function MeetingRoom({
   breakoutInfo, setBreakoutInfo,
 }) {
   const { useCallCallingState, useParticipantCount } = useCallStateHooks();
-  const callingState = useCallCallingState();
+  const callingState    = useCallCallingState();
   const participantCount = useParticipantCount();
 
-  const [transcript, setTranscript] = useState([]);
-  const [showSubtitles, setShowSubtitles] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
+  const [transcript,       setTranscript]       = useState([]);
+  const [showSubtitles,    setShowSubtitles]    = useState(false);
+  const [isRecording,      setIsRecording]      = useState(false);
   const [showWaitingPanel, setShowWaitingPanel] = useState(false);
-  const [showWhiteboard, setShowWhiteboard] = useState(false);
-  const [showChat, setShowChat] = useState(false);
-  const [showPoll, setShowPoll] = useState(false);
+  const [showWhiteboard,   setShowWhiteboard]   = useState(false);
+  const [showChat,         setShowChat]         = useState(false);
+  const [showPoll,         setShowPoll]         = useState(false);
   const [showParticipants, setShowParticipants] = useState(false);
-  const [showBreakout, setShowBreakout] = useState(false);
-  const [waitingCount, setWaitingCount] = useState(0);
+  const [showBreakout,     setShowBreakout]     = useState(false);
+  const [showLayout,       setShowLayout]       = useState(false);
+  const [layoutMode,       setLayoutMode]       = useState("default");
+  const [waitingCount,     setWaitingCount]     = useState(0);
+  const [isFullscreen,     setIsFullscreen]     = useState(false);
   const recognitionRef = useRef(null);
+  const containerRef   = useRef(null);
 
-  // Close all side panels
   const closeAllPanels = () => {
     setShowWaitingPanel(false);
     setShowChat(false);
     setShowPoll(false);
     setShowParticipants(false);
     setShowBreakout(false);
+    setShowLayout(false);
   };
 
   const togglePanel = (panel) => {
-    const cur = { 
-      waiting: showWaitingPanel, 
-      chat: showChat, 
-      poll: showPoll, 
-      participants: showParticipants, 
-      breakout: showBreakout 
+    const cur = {
+      waiting: showWaitingPanel,
+      chat: showChat,
+      poll: showPoll,
+      participants: showParticipants,
+      breakout: showBreakout,
+      layout: showLayout,
     }[panel];
     closeAllPanels();
     if (!cur) {
-      if (panel === "waiting") setShowWaitingPanel(true);
-      else if (panel === "chat") setShowChat(true);
-      else if (panel === "poll") setShowPoll(true);
+      if (panel === "waiting")      setShowWaitingPanel(true);
+      else if (panel === "chat")    setShowChat(true);
+      else if (panel === "poll")    setShowPoll(true);
       else if (panel === "participants") setShowParticipants(true);
       else if (panel === "breakout") setShowBreakout(true);
+      else if (panel === "layout")  setShowLayout(true);
     }
   };
+
+  // Fullscreen handling
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
 
   // ── Knock / waiting-room listeners (instructor) ────────────
   useEffect(() => {
     if (!socket || !isInstructor) return;
-    const handleKnock = ({ name }) => {
+    const handleKnock = ({ name, userId }) => {
       setWaitingCount((c) => c + 1);
+      // Auto-show waiting panel when someone knocks
+      setShowWaitingPanel(true);
       toast(
         (t) => (
           <div className="flex items-center gap-3">
             <Bell size={16} className="text-amber-400 flex-shrink-0" />
             <div>
-              <p className="text-sm font-medium text-white">{name} is waiting</p>
-              <button
-                onClick={() => { setShowWaitingPanel(true); toast.dismiss(t.id); }}
-                className="text-xs text-azure-400 hover:underline mt-0.5"
-              >
-                Open Waiting Room →
-              </button>
+              <p className="text-sm font-medium text-white">{name} wants to join</p>
+              <p className="text-xs text-white/50 mt-0.5">Waiting Room is now open</p>
             </div>
           </div>
         ),
-        { duration: 8000, style: { background: "rgb(15,23,42)", border: "1px solid rgba(255,255,255,0.1)" } }
+        { duration: 6000, style: { background: "rgb(15,23,42)", border: "1px solid rgba(255,255,255,0.1)" } }
       );
     };
     const handleUpdate = () => {
@@ -321,7 +379,7 @@ function MeetingRoom({
     };
   }, [socket, isInstructor, meetingId]);
 
-  // ── REAL-TIME: Whiteboard auto-open/close ──────────────────
+  // ── REAL-TIME: Whiteboard auto-open/close for students ─────
   useEffect(() => {
     if (!socket || isInstructor) return;
 
@@ -341,11 +399,11 @@ function MeetingRoom({
     };
   }, [socket, isInstructor]);
 
-  // When instructor toggles whiteboard, emit open/close event so students follow
   const handleToggleWhiteboard = () => {
     const next = !showWhiteboard;
     setShowWhiteboard(next);
     if (isInstructor && socket) {
+      // Emit to the meeting-room (students) so they get notified
       socket.emit(next ? "wb-open" : "wb-close", { meetingId });
     }
   };
@@ -358,38 +416,34 @@ function MeetingRoom({
       setBreakoutInfo({ roomIndex, roomName, streamCallId, status: "assigned" });
       toast(`📋 You've been assigned to "${roomName}"`, { duration: 5000 });
     };
-
     const onStarted = ({ roomIndex, roomName, streamCallId, endsAt, durationMinutes }) => {
       setBreakoutInfo({ roomIndex, roomName, streamCallId, endsAt, durationMinutes, status: "active" });
       toast.success(`🚀 Breakout rooms started! Join "${roomName}"`, { duration: 8000 });
     };
-
     const onMoved = ({ roomIndex, roomName, streamCallId }) => {
       setBreakoutInfo((prev) => ({ ...prev, roomIndex, roomName, streamCallId }));
       toast(`↩️ Moved to "${roomName}"`, { duration: 4000 });
     };
-
     const onClosed = () => {
       setBreakoutInfo(null);
       toast("✅ Breakout rooms closed. Welcome back!", { duration: 4000 });
     };
-
     const onBroadcast = ({ message, from }) => {
       toast(`📢 ${from}: ${message}`, { duration: 6000 });
     };
 
     socket.on("breakout-assigned", onAssigned);
-    socket.on("breakout-started", onStarted);
-    socket.on("breakout-moved", onMoved);
-    socket.on("breakout-closed", onClosed);
-    socket.on("breakout-broadcast", onBroadcast);
+    socket.on("breakout-started",  onStarted);
+    socket.on("breakout-moved",    onMoved);
+    socket.on("breakout-closed",   onClosed);
+    socket.on("breakout-broadcast",onBroadcast);
 
     return () => {
       socket.off("breakout-assigned", onAssigned);
-      socket.off("breakout-started", onStarted);
-      socket.off("breakout-moved", onMoved);
-      socket.off("breakout-closed", onClosed);
-      socket.off("breakout-broadcast", onBroadcast);
+      socket.off("breakout-started",  onStarted);
+      socket.off("breakout-moved",    onMoved);
+      socket.off("breakout-closed",   onClosed);
+      socket.off("breakout-broadcast",onBroadcast);
     };
   }, [socket, isInstructor, setBreakoutInfo]);
 
@@ -398,8 +452,8 @@ function MeetingRoom({
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR || recognitionRef.current) return;
     const r = new SR();
-    r.continuous = true; 
-    r.interimResults = true; 
+    r.continuous = true;
+    r.interimResults = true;
     r.lang = "en-US";
     r.onresult = (e) => {
       const finals = Array.from(e.results).filter((x) => x.isFinal).map((x) => x[0].transcript.trim()).filter(Boolean);
@@ -430,9 +484,8 @@ function MeetingRoom({
   useEffect(() => {
     if (callingState === CallingState.JOINED) startTranscription();
     return () => stopTranscription();
-  }, [callingState]);
+  }, [callingState]); // eslint-disable-line
 
-  // Fetch initial waiting count for instructor
   useEffect(() => {
     if (!isInstructor) return;
     axios.get(`/api/v1/meeting/${meetingId}/waiting-room`, { withCredentials: true })
@@ -451,7 +504,6 @@ function MeetingRoom({
     );
   }
 
-  // ── Breakout room banner (student is assigned to a room) ────
   const BreakoutBanner = () => {
     if (!breakoutInfo || isInstructor) return null;
     return (
@@ -484,18 +536,34 @@ function MeetingRoom({
     );
   };
 
+  // Determine speaker layout based on mode
+  const getSpeakerLayoutProps = () => {
+    switch (layoutMode) {
+      case "teacher-only":
+        return { participantsBarPosition: "hidden" };
+      case "students-only":
+        return { participantsBarPosition: "top" };
+      case "no-participants":
+        return { participantsBarPosition: "hidden" };
+      default:
+        return { participantsBarPosition: "bottom" };
+    }
+  };
+
   return (
     <StreamTheme>
-      <div className="relative h-screen bg-navy-950 flex flex-col overflow-hidden">
+      <div ref={containerRef} className="relative h-screen bg-navy-950 flex flex-col overflow-hidden">
 
         {/* ── Top bar ─────────────────────────────────────── */}
-        <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-5 py-3 bg-gradient-to-b from-black/70 to-transparent">
+        <div className="live-room-topbar absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-5 py-3 bg-gradient-to-b from-black/70 to-transparent">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-azure-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center">
               <GraduationCap size={15} className="text-white" />
             </div>
             <div>
-              <span className="font-display text-sm font-semibold text-white">LearnSphere</span>
+              <span className="font-display text-sm font-bold text-white">
+                Collab<span className="text-cyan-400">Sphere</span>
+              </span>
               <div className="flex items-center gap-1 mt-0.5">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 <span className="text-xs text-emerald-400">Live</span>
@@ -508,8 +576,8 @@ function MeetingRoom({
             <button
               onClick={() => togglePanel("participants")}
               className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all ${
-                showParticipants 
-                  ? "bg-azure-600/80 border-azure-500/50 text-white" 
+                showParticipants
+                  ? "bg-azure-600/80 border-azure-500/50 text-white"
                   : "bg-navy-800/70 border-white/10 text-white/60 hover:text-white"
               }`}
             >
@@ -521,14 +589,14 @@ function MeetingRoom({
               <button
                 onClick={() => togglePanel("waiting")}
                 className={`relative flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all ${
-                  showWaitingPanel 
-                    ? "bg-amber-600/80 border-amber-500/50 text-white" 
+                  showWaitingPanel
+                    ? "bg-amber-600/80 border-amber-500/50 text-white"
                     : "bg-navy-800/70 border-white/10 text-white/60 hover:text-white"
                 }`}
               >
                 <Users size={11} /> Waiting Room
                 {waitingCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-xs flex items-center justify-center font-bold">
+                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-xs flex items-center justify-center font-bold animate-pulse">
                     {waitingCount}
                   </span>
                 )}
@@ -539,8 +607,8 @@ function MeetingRoom({
             <button
               onClick={() => togglePanel("chat")}
               className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all ${
-                showChat 
-                  ? "bg-emerald-600/80 border-emerald-500/50 text-white" 
+                showChat
+                  ? "bg-emerald-600/80 border-emerald-500/50 text-white"
                   : "bg-navy-800/70 border-white/10 text-white/60 hover:text-white"
               }`}
             >
@@ -551,8 +619,8 @@ function MeetingRoom({
             <button
               onClick={() => togglePanel("poll")}
               className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all ${
-                showPoll 
-                  ? "bg-violet-600/80 border-violet-500/50 text-white" 
+                showPoll
+                  ? "bg-violet-600/80 border-violet-500/50 text-white"
                   : "bg-navy-800/70 border-white/10 text-white/60 hover:text-white"
               }`}
             >
@@ -563,8 +631,8 @@ function MeetingRoom({
             <button
               onClick={() => togglePanel("breakout")}
               className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all ${
-                showBreakout 
-                  ? "bg-teal-600/80 border-teal-500/50 text-white" 
+                showBreakout
+                  ? "bg-teal-600/80 border-teal-500/50 text-white"
                   : "bg-navy-800/70 border-white/10 text-white/60 hover:text-white"
               }`}
             >
@@ -575,8 +643,8 @@ function MeetingRoom({
             <button
               onClick={handleToggleWhiteboard}
               className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all ${
-                showWhiteboard 
-                  ? "bg-violet-600/80 border-violet-500/50 text-white" 
+                showWhiteboard
+                  ? "bg-violet-600/80 border-violet-500/50 text-white"
                   : "bg-navy-800/70 border-white/10 text-white/60 hover:text-white"
               }`}
             >
@@ -587,8 +655,8 @@ function MeetingRoom({
             <button
               onClick={() => setShowSubtitles((s) => !s)}
               className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all ${
-                showSubtitles 
-                  ? "bg-azure-600/80 border-azure-500/50 text-white" 
+                showSubtitles
+                  ? "bg-azure-600/80 border-azure-500/50 text-white"
                   : "bg-navy-800/70 border-white/10 text-white/60 hover:text-white"
               }`}
             >
@@ -599,14 +667,35 @@ function MeetingRoom({
             <button
               onClick={isRecording ? stopTranscription : startTranscription}
               className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all ${
-                isRecording 
-                  ? "bg-rose-600/70 border-rose-500/50 text-white" 
+                isRecording
+                  ? "bg-rose-600/70 border-rose-500/50 text-white"
                   : "bg-navy-800/70 border-white/10 text-white/60 hover:text-white"
               }`}
             >
-              {isRecording 
-                ? <><Mic size={11} className="animate-pulse" /> Recording</> 
+              {isRecording
+                ? <><Mic size={11} className="animate-pulse" /> Recording</>
                 : <><MicOff size={11} /> Record</>}
+            </button>
+
+            {/* Layout selector — available to ALL users */}
+            <button
+              onClick={() => togglePanel("layout")}
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all ${
+                showLayout
+                  ? "bg-sky-600/80 border-sky-500/50 text-white"
+                  : "bg-navy-800/70 border-white/10 text-white/60 hover:text-white"
+              }`}
+            >
+              <Monitor size={11} /> Layout
+            </button>
+
+            {/* Fullscreen */}
+            <button
+              onClick={toggleFullscreen}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border bg-navy-800/70 border-white/10 text-white/60 hover:text-white transition-all"
+              title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+            >
+              {isFullscreen ? <Minimize2 size={11} /> : <Maximize2 size={11} />}
             </button>
 
             {/* AI Summary (instructor) */}
@@ -625,7 +714,15 @@ function MeetingRoom({
 
         {/* ── Video layout ─────────────────────────────────── */}
         <div className="flex-1 pt-14 pb-20">
-          <SpeakerLayout participantsBarPosition="bottom" />
+          {layoutMode === "teacher-only" ? (
+            <div className="w-full h-full flex items-center justify-center">
+              <SpeakerLayout participantsBarPosition="hidden" />
+            </div>
+          ) : layoutMode === "no-participants" ? (
+            <SpeakerLayout participantsBarPosition="hidden" />
+          ) : (
+            <SpeakerLayout participantsBarPosition="bottom" />
+          )}
         </div>
 
         {/* ── Breakout banner (student assigned) ──────────── */}
@@ -657,6 +754,13 @@ function MeetingRoom({
             onClose={() => setShowBreakout(false)}
           />
         )}
+        {showLayout && (
+          <LayoutSelector
+            current={layoutMode}
+            onChange={setLayoutMode}
+            onClose={() => setShowLayout(false)}
+          />
+        )}
 
         {/* ── Live captions ────────────────────────────────── */}
         {showSubtitles && transcript.slice(-3).length > 0 && (
@@ -671,8 +775,9 @@ function MeetingRoom({
           </div>
         )}
 
-        {/* ── Call controls ────────────────────────────────── */}
-        <div className="absolute bottom-0 left-0 right-0 z-20">
+        {/* ── Call controls ─────────────────────────────────── */}
+        {/* Always fixed so they show in fullscreen too */}
+        <div className="str-video__call-controls absolute bottom-0 left-0 right-0 z-20">
           <CallControls onLeave={onLeave} />
         </div>
 
@@ -783,19 +888,19 @@ export default function MeetingRoomPage() {
   const navigate = useNavigate();
   const isInstructor = user?.role === "instructor";
 
-  const [pageStatus, setPageStatus] = useState("loading");
-  const [streamClient, setStreamClient] = useState(null);
-  const [streamCall, setStreamCall] = useState(null);
-  const [errorMsg, setErrorMsg] = useState("");
+  const [pageStatus,     setPageStatus]     = useState("loading");
+  const [streamClient,   setStreamClient]   = useState(null);
+  const [streamCall,     setStreamCall]     = useState(null);
+  const [errorMsg,       setErrorMsg]       = useState("");
   const [summaryLoading, setSummaryLoading] = useState(false);
-  const [breakoutInfo, setBreakoutInfo] = useState(null);
+  const [breakoutInfo,   setBreakoutInfo]   = useState(null);
 
-  const clientRef = useRef(null);
-  const callRef = useRef(null);
-  const didInit = useRef(false);
-  const socketRef = useRef(null);
-  const pollRef = useRef(null);
-  const transcriptRef = useRef([]);
+  const clientRef      = useRef(null);
+  const callRef        = useRef(null);
+  const didInit        = useRef(false);
+  const socketRef      = useRef(null);
+  const pollRef        = useRef(null);
+  const transcriptRef  = useRef([]);
 
   // ── Socket setup ──────────────────────────────────────────
   useEffect(() => {
@@ -804,14 +909,18 @@ export default function MeetingRoomPage() {
 
     socket.on("connect", () => {
       if (isInstructor) {
-        socket.emit("join-host-room", { meetingId });
-        socket.emit("join-poll-room", { meetingId });
+        socket.emit("join-host-room",  { meetingId });
+        socket.emit("join-poll-room",  { meetingId });
+        // Also join wb room as host (so students can request sync)
+        socket.emit("wb-join", { meetingId });
       } else {
         socket.emit("join-student-room", { meetingId, userId: user?._id?.toString() });
-        socket.emit("join-poll-room", { meetingId });
+        socket.emit("join-poll-room",    { meetingId });
+        socket.emit("wb-join",           { meetingId });
       }
     });
 
+    // When student is admitted — auto-join stream immediately, no refresh needed
     socket.on("student-admitted", ({ meetingId: mid }) => {
       if (mid === meetingId) {
         toast.success("✅ You've been admitted! Joining now…");
@@ -831,7 +940,7 @@ export default function MeetingRoomPage() {
       if (mid === meetingId) { toast("Class has ended", { icon: "🔔" }); navigate("/meetings"); }
     });
 
-    socket.on("breakout-created", ({ session }) => {
+    socket.on("breakout-created", () => {
       toast("📋 Breakout rooms created!", { duration: 3000 });
     });
 
@@ -873,7 +982,7 @@ export default function MeetingRoomPage() {
 
       await axios.post("/api/v1/meeting/attendance/join", { meetingId }, { withCredentials: true }).catch(() => {});
 
-      // Check if there's an existing active breakout session
+      // Check for active breakout session
       try {
         const { data: br } = await axios.get(`/api/v1/breakout/${meetingId}`, { withCredentials: true });
         if (br.session?.status === "active" && !isInstructor) {
@@ -931,6 +1040,7 @@ export default function MeetingRoomPage() {
               } catch {}
             }, 5000);
           } else {
+            // status === "waiting" — socket will admit them, no polling needed
             setPageStatus("waiting");
           }
         } catch (err) {
