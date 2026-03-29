@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
 import {
   FileText, Download, Eye, Calendar, Search, BookOpen,
-  Sparkles, Subtitles, X, RefreshCw, Trash2, AlertTriangle
+  Sparkles, Subtitles, X, RefreshCw, Trash2, AlertTriangle, Loader
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -12,13 +12,14 @@ export default function SummariesPage() {
   const { user } = useAuth();
   const isInstructor = user?.role === "instructor";
 
-  const [summaries, setSummaries] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [viewing, setViewing] = useState(null);
-  const [viewTab, setViewTab] = useState("summary");
-  const [deleteConfirm, setDeleteConfirm] = useState(null); // meetingId to confirm
-  const [deleting, setDeleting] = useState(false);
+  const [summaries,     setSummaries]     = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [search,        setSearch]        = useState("");
+  const [viewing,       setViewing]       = useState(null);
+  const [viewTab,       setViewTab]       = useState("summary");
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deleting,      setDeleting]      = useState(false);
+  const [downloading,   setDownloading]   = useState(null); // meetingId being downloaded
 
   const fetchSummaries = () => {
     setLoading(true);
@@ -48,6 +49,7 @@ export default function SummariesPage() {
       await axios.delete(`/api/v1/summary/${deleteConfirm}`, { withCredentials: true });
       toast.success("Summary deleted — removed for all users.");
       setSummaries((prev) => prev.filter((s) => s.meetingId !== deleteConfirm));
+      if (viewing?.meetingId === deleteConfirm) setViewing(null);
       setDeleteConfirm(null);
     } catch (err) {
       toast.error(err?.response?.data?.message || "Failed to delete summary");
@@ -56,10 +58,41 @@ export default function SummariesPage() {
     }
   };
 
+  // ── PDF Download ──────────────────────────────────────────
+  // Uses /api/v1/summary/download/:meetingId which:
+  //   1. Tries the cached file on disk first (fast)
+  //   2. Regenerates from DB on-the-fly if file is missing (covers all old summaries)
+  //   3. Caches the regenerated file so next download is instant
+  const handleDownloadPdf = async (meetingId, meetingTitle) => {
+    setDownloading(meetingId);
+    try {
+      const response = await axios.get(
+        `/api/v1/summary/download/${encodeURIComponent(meetingId)}`,
+        { withCredentials: true, responseType: "blob" }
+      );
+
+      // Create a temporary link and trigger download
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href     = url;
+      a.download = `${(meetingTitle || "summary").replace(/[^a-z0-9\s]/gi, "_")}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error("Failed to download PDF. Please try again.");
+      console.error("PDF download error:", err);
+    } finally {
+      setDownloading(null);
+    }
+  };
+
   const filtered = summaries.filter(
     (s) =>
       (s.meetingTitle || "").toLowerCase().includes(search.toLowerCase()) ||
-      (s.meetingId || "").toLowerCase().includes(search.toLowerCase())
+      (s.meetingId    || "").toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -112,9 +145,11 @@ export default function SummariesPage() {
           <FileText size={40} className="text-white/10 mb-4" />
           <p className="text-white/30 font-medium">No summaries yet</p>
           <p className="text-white/20 text-sm mt-1">
-            {search ? "No summaries match your search" :
-              isInstructor ? "Summaries appear automatically when you end a live class" :
-              "Your teachers' class summaries will appear here"}
+            {search
+              ? "No summaries match your search"
+              : isInstructor
+              ? "Summaries appear automatically when you end a live class"
+              : "Your teachers' class summaries will appear here"}
           </p>
         </div>
       ) : (
@@ -131,7 +166,8 @@ export default function SummariesPage() {
                       <Sparkles size={9} /> AI
                     </span>
                   )}
-                  {s.pdfPath && <span className="badge-blue text-xs">PDF</span>}
+                  {/* Show PDF badge for all summaries — PDF can always be generated */}
+                  <span className="badge-blue text-xs">PDF</span>
                 </div>
               </div>
 
@@ -173,17 +209,19 @@ export default function SummariesPage() {
                 >
                   <Eye size={12} /> View
                 </button>
-                {s.pdfPath && (
-                  <a
-                    href={s.pdfPath}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    download
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-azure-600/20 hover:bg-azure-600/30 text-azure-400 text-xs transition-all"
-                  >
-                    <Download size={12} /> PDF
-                  </a>
-                )}
+
+                {/* PDF — works for all summaries old and new */}
+                <button
+                  onClick={() => handleDownloadPdf(s.meetingId, s.meetingTitle)}
+                  disabled={downloading === s.meetingId}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-azure-600/20 hover:bg-azure-600/30 text-azure-400 text-xs transition-all disabled:opacity-60"
+                >
+                  {downloading === s.meetingId
+                    ? <><Loader size={11} className="animate-spin" /> Generating…</>
+                    : <><Download size={12} /> PDF</>
+                  }
+                </button>
+
                 {/* Delete — instructor only */}
                 {isInstructor && (
                   <button
@@ -227,11 +265,10 @@ export default function SummariesPage() {
                 disabled={deleting}
                 className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-sm font-medium transition-all disabled:opacity-60 flex items-center justify-center gap-2"
               >
-                {deleting ? (
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <><Trash2 size={14} /> Delete</>
-                )}
+                {deleting
+                  ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  : <><Trash2 size={14} /> Delete</>
+                }
               </button>
             </div>
           </div>
@@ -258,14 +295,20 @@ export default function SummariesPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                {viewing.pdfPath && (
-                  <a href={viewing.pdfPath} target="_blank" rel="noopener noreferrer"
-                    className="btn-primary text-xs py-2 px-3 flex items-center gap-1.5">
-                    <Download size={12} /> PDF
-                  </a>
-                )}
-                <button onClick={() => setViewing(null)}
-                  className="p-2 rounded-xl text-white/30 hover:text-white hover:bg-white/5 transition-all">
+                <button
+                  onClick={() => handleDownloadPdf(viewing.meetingId, viewing.meetingTitle)}
+                  disabled={downloading === viewing.meetingId}
+                  className="btn-primary text-xs py-2 px-3 flex items-center gap-1.5 disabled:opacity-60"
+                >
+                  {downloading === viewing.meetingId
+                    ? <><Loader size={11} className="animate-spin" /> Generating…</>
+                    : <><Download size={12} /> Download PDF</>
+                  }
+                </button>
+                <button
+                  onClick={() => setViewing(null)}
+                  className="p-2 rounded-xl text-white/30 hover:text-white hover:bg-white/5 transition-all"
+                >
                   <X size={16} />
                 </button>
               </div>
@@ -274,14 +317,17 @@ export default function SummariesPage() {
             {/* Tabs */}
             <div className="flex gap-1 p-3 border-b border-white/6 flex-shrink-0 overflow-x-auto">
               {[
-                { id: "summary", label: "Summary", icon: BookOpen, show: !!viewing.summary },
-                { id: "subtitles", label: "Subtitles", icon: Subtitles, show: !!viewing.subtitles },
-                { id: "transcript", label: "Transcript", icon: FileText, show: true },
+                { id: "summary",    label: "Summary",    icon: BookOpen,  show: !!viewing.summary    },
+                { id: "subtitles",  label: "Subtitles",  icon: Subtitles, show: !!viewing.subtitles  },
+                { id: "transcript", label: "Transcript",  icon: FileText,  show: true                 },
               ].filter((t) => t.show).map(({ id, label, icon: Icon }) => (
-                <button key={id} onClick={() => setViewTab(id)}
+                <button
+                  key={id}
+                  onClick={() => setViewTab(id)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
                     viewTab === id ? "bg-azure-600 text-white" : "text-white/40 hover:text-white/70"
-                  }`}>
+                  }`}
+                >
                   <Icon size={12} /> {label}
                 </button>
               ))}
@@ -291,13 +337,18 @@ export default function SummariesPage() {
               {viewTab === "summary" && viewing.summary && (
                 <div className="space-y-2">
                   {viewing.summary.split("\n").filter(Boolean).map((line, i) => (
-                    <p key={i} className={`text-sm leading-relaxed ${
-                      line.match(/^\d\./) || (line === line.toUpperCase() && line.trim().length > 3)
-                        ? "text-azure-400 font-semibold mt-4 first:mt-0"
-                        : line.startsWith("•") || line.startsWith("-")
-                        ? "text-white/70 pl-4"
-                        : "text-white/60"
-                    }`}>{line}</p>
+                    <p
+                      key={i}
+                      className={`text-sm leading-relaxed ${
+                        line.match(/^\d\./) || (line === line.toUpperCase() && line.trim().length > 3)
+                          ? "text-azure-400 font-semibold mt-4 first:mt-0"
+                          : line.startsWith("•") || line.startsWith("-")
+                          ? "text-white/70 pl-4"
+                          : "text-white/60"
+                      }`}
+                    >
+                      {line}
+                    </p>
                   ))}
                 </div>
               )}
@@ -311,9 +362,12 @@ export default function SummariesPage() {
               {viewTab === "transcript" && (
                 <div className="space-y-2">
                   {viewing.transcript
-                    ? viewing.transcript.split(/[.\n]/).filter((s) => s.trim().length > 3).map((line, i) => (
-                        <p key={i} className="text-sm text-white/55 leading-relaxed">{line.trim()}.</p>
-                      ))
+                    ? viewing.transcript
+                        .split(/[.\n]/)
+                        .filter((s) => s.trim().length > 3)
+                        .map((line, i) => (
+                          <p key={i} className="text-sm text-white/55 leading-relaxed">{line.trim()}.</p>
+                        ))
                     : <p className="text-white/30 text-sm italic">No transcript was captured for this session.</p>
                   }
                 </div>
